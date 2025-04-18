@@ -1,0 +1,35 @@
+# 模型配置
+model:
+  base_model: "TinyLlama/TinyLlama-1.1B-Chat-v1.0"  # 使用開源模型替代需要授權的 LLaMA-2
+  lora_r: 16                              # LoRA秩
+  lora_alpha: 32                          # LoRA縮放參數
+  lora_dropout: 0.05                      # LoRA Dropout率
+  target_modules: ["q_proj", "k_proj", "v_proj", "o_proj"]  # 需要微調的目標模組
+
+# 訓練配置
+training:
+  batch_size: 2                           # 訓練批次大小 (減少以適應 M4 記憶體)
+  micro_batch_size: 1                     # 梯度累積的微批次大小
+  num_epochs: 3                           # 訓練輪數
+  learning_rate: 2e-4                     # 學習率
+  cutoff_len: 512                         # 最大序列長度
+  val_set_size: 0.05                      # 驗證集比例
+  warmup_steps: 50                        # 學習率預熱步數 (減少)
+  save_steps: 100                         # 每多少步保存一次檢查點 (減少)
+  gradient_accumulation_steps: 2          # 梯度累積步數 (減少)
+  gradient_checkpointing: true            # 是否啟用梯度檢查點
+  max_grad_norm: 0.3                      # 梯度裁剪值
+  weight_decay: 0.001                     # 權重衰減
+  optimizer: "adamw_torch"                # 優化器
+
+# 數據配置
+data:
+  train_path: "data/raw/train_data.json"  # 訓練數據路徑
+  eval_path: "data/raw/eval_data.json"    # 評估數據路徑
+  processed_path: "data/processed/"       # 處理後數據存放路徑
+
+# 輸出配置
+output:
+  output_dir: "models/finetune-tinyllama"  # 更新輸出目錄名稱
+  logging_dir: "logs"                     # 日誌目錄
+  report_to: "none"                       # 不使用外部報告工具
