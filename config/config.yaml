@@ -10,10 +10,10 @@ model:
 training:
   batch_size: 2                           # 訓練批次大小 (減少以適應 M4 記憶體)
   micro_batch_size: 1                     # 梯度累積的微批次大小
-  num_epochs: 3                           # 訓練輪數
+  num_epochs: 5                           # 訓練輪數
   learning_rate: 2e-4                     # 學習率
   cutoff_len: 512                         # 最大序列長度
-  val_set_size: 0.05                      # 驗證集比例
+  val_set_size: 0.15                      # 驗證集比例
   warmup_steps: 50                        # 學習率預熱步數 (減少)
   save_steps: 100                         # 每多少步保存一次檢查點 (減少)
   gradient_accumulation_steps: 2          # 梯度累積步數 (減少)

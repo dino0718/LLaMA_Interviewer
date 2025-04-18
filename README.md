@@ -67,6 +67,49 @@ LLaMA_Interviewer 是一個針對面試場景的語言模型微調專案。該�
 - **權重衰減**: 0.001
 - **優化器**: `adamw_torch`
 
+## 訓練配置說明
+
+以下參數定義了模型的訓練行為，請根據硬體資源和任務需求調整：
+
+- `batch_size`: 2  
+  整體訓練批次大小。一次送入模型計算的樣本數。較小的批次佔用較少記憶體，但可能影響訓練穩定性。
+
+- `micro_batch_size`: 1  
+  微批次大小，用於梯度累積。將大批次拆成多個微批次計算，可在有限顯存下模擬更大 batch。
+
+- `num_epochs`: 5  
+  訓練輪數。模型將完整迭代訓練資料集的次數，輪數越多擬合越充分，但過多可能過擬合。
+
+- `learning_rate`: 2e-4  
+  學習率，控制每次參數更新的步長。過大易發散，過小收斂緩慢。
+
+- `cutoff_len`: 512  
+  最大序列長度。訓練中截斷或填充的最大令牌數，影響記憶體佔用與上下文容量。
+
+- `val_set_size`: 0.1  
+  驗證集比例。若未提供獨立驗證資料，將從訓練集中按此比例隨機拆分。
+
+- `warmup_steps`: 50  
+  預熱步數，初始階段線性增大学習率以穩定訓練，預熱結束後再進入正常調度。
+
+- `save_steps`: 100  
+  每隔多少訓練步保存一次檢查點，方便中斷後繼續或回滾到歷史版本。
+
+- `gradient_accumulation_steps`: 2  
+  梯度累積步數，將多次微批次梯度累積後再做一次參數更新，有助於穩定訓練。
+
+- `gradient_checkpointing`: true  
+  是否啟用梯度檢查點，將部分中間激活值丟棄後再逐層重計算，以降低顯存佔用。
+
+- `max_grad_norm`: 0.3  
+  梯度裁剪閾值，當梯度範數超過此值時進行裁剪，有助於防止梯度爆炸。
+
+- `weight_decay`: 0.001  
+  權重衰減係數，作為正則化手段，抑制模型過度擬合。
+
+- `optimizer`: "adamw_torch"  
+  優化器選擇，此處使用 AdamW（PyTorch 實現），結合權重衰減和動量加速收斂。
+
 ## 評估結果分析
 
 ```
@@ -150,6 +193,60 @@ python src/evaluation.py
 ```
 
 ### 模型使用
+
+#### Python API 範例
+
+````python
+# 載入分詞器與模型
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+
+tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+base_model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+model = PeftModel.from_pretrained(base_model, "models/finetune-tinyllama")
+
+# 定義生成函數
+def generate_answer(question: str,
+                    max_new_tokens: int = 128,
+                    temperature: float = 0.7,
+                    top_p: float = 0.9) -> str:
+    prompt = f"面試官：{question}\n應聘者："
+    inputs = tokenizer(prompt, return_tensors="pt")
+    outputs = model.generate(
+        **inputs,
+        max_new_tokens=max_new_tokens,
+        temperature=temperature,
+        top_p=top_p,
+        do_sample=True
+    )
+    return tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+# 呼叫範例
+if __name__ == "__main__":
+    q = "請簡單介紹一下自己？"
+    print(generate_answer(q))
+````
+
+#### 命令列快速測試
+
+```bash
+python - <<'PYCODE'
+from transformers import AutoTokenizer, AutoModelForCausalLM
+from peft import PeftModel
+
+tokenizer = AutoTokenizer.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+base_model = AutoModelForCausalLM.from_pretrained("TinyLlama/TinyLlama-1.1B-Chat-v1.0")
+model = PeftModel.from_pretrained(base_model, "models/finetune-tinyllama")
+
+prompt = "面試官：你為什麼想加入我們公司？\n應聘者："
+inputs = tokenizer(prompt, return_tensors="pt")
+out = model.generate(**inputs, max_new_tokens=100, temperature=0.7, top_p=0.9, do_sample=True)
+echo=$(python - <<PYCODE
+print(tokenizer.decode(out[0], skip_special_tokens=True))
+PYCODE
+)
+echo
+```
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
